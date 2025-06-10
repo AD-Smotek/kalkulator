@@ -4,27 +4,23 @@ const buttons = document.querySelectorAll('.calculator-buttons button');
 const historyDisplay = document.getElementById('history-display');
 const clearHistoryBtn = document.getElementById('clear-history-btn');
 
-let currentInput = '';
+let currentInput = '0';
 let lastResult = null;
 let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
-
 
 function renderHistory() {
   historyDisplay.innerHTML = history.map(item => `<div>${item}</div>`).join('');
 }
-
 
 function saveHistory() {
   localStorage.setItem('calcHistory', JSON.stringify(history));
   renderHistory();
 }
 
-
 clearHistoryBtn.addEventListener('click', () => {
   history = [];
   saveHistory();
 });
-
 
 function appendToInput(value) {
   if (currentInput === '0' && value !== '.') {
@@ -35,13 +31,11 @@ function appendToInput(value) {
   inputDisplay.textContent = currentInput;
 }
 
-
 function clearLast() {
   currentInput = currentInput.slice(0, -1);
   if (currentInput === '') currentInput = '0';
   inputDisplay.textContent = currentInput;
 }
-
 
 function clearAll() {
   currentInput = '0';
@@ -49,11 +43,9 @@ function clearAll() {
   outputDisplay.textContent = '0';
 }
 
-
 function prepareExpression(expr) {
   return expr.replace(/\^/g, '**');
 }
-
 
 function calculate() {
   try {
@@ -63,11 +55,10 @@ function calculate() {
     if (typeof result === 'number' && !isNaN(result)) {
       outputDisplay.textContent = result;
       lastResult = result;
-      // Zapsat do historie
       history.push(`${currentInput} = ${result}`);
       saveHistory();
-      currentInput = '';
-      inputDisplay.textContent = '';
+      currentInput = '0';
+      inputDisplay.textContent = currentInput;
     } else {
       outputDisplay.textContent = 'Error';
     }
@@ -76,10 +67,14 @@ function calculate() {
   }
 }
 
-
 buttons.forEach(button => {
   button.addEventListener('click', () => {
-    const val = button.value;
+    // Use value if available; else, check IDs for C/CE buttons
+    let val = button.value;
+    if (!val) {
+      if (button.id === 'clear-btn') val = 'C';
+      else if (button.id === 'clear-all-btn') val = 'CE';
+    }
 
     if (val === 'C') {
       clearLast();
@@ -88,25 +83,22 @@ buttons.forEach(button => {
     } else if (val === '=') {
       calculate();
     } else if (['+', '-', '*', '/', '^'].includes(val)) {
-      
-      if (currentInput === '' && lastResult !== null) {
+      if ((currentInput === '0' || currentInput === '') && lastResult !== null) {
         currentInput = lastResult.toString();
       }
       appendToInput(val);
     } else if (val === '(' || val === ')') {
       appendToInput(val);
     } else {
-      
       appendToInput(val);
     }
   });
 });
 
-
 document.addEventListener('keydown', e => {
   const allowedKeys = '0123456789+-*/^().';
   if (allowedKeys.includes(e.key)) {
-    if (currentInput === '' && ['+', '-', '*', '/', '^'].includes(e.key) && lastResult !== null) {
+    if ((currentInput === '0' || currentInput === '') && ['+', '-', '*', '/', '^'].includes(e.key) && lastResult !== null) {
       currentInput = lastResult.toString();
     }
     appendToInput(e.key);
