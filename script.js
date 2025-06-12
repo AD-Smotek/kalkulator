@@ -1,115 +1,146 @@
-const inputDisplay = document.getElementById('calculator-input');
-const outputDisplay = document.getElementById('calculator-output');
-const buttons = document.querySelectorAll('.calculator-buttons button');
-const historyDisplay = document.getElementById('history-display');
-const clearHistoryBtn = document.getElementById('clear-history-btn');
+const inputElem = document.querySelector('#calculator-input');
+const outputElem = document.querySelector('#calculator-output');
+const historyElem = document.querySelector('#history-display');
+const clearHistoryBtn = document.querySelector('#clear-history-btn');
+const btns = [...document.querySelectorAll('.calculator-buttons button')];
 
-let currentInput = '0';
-let lastResult = null;
-let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+let inputStr = '0';
+let lastAnswer = null;
+let calcHistory = JSON.parse(localStorage.getItem('calcHist')) || [];
 
-function renderHistory() {
-  historyDisplay.innerHTML = history.map(item => `<div>${item}</div>`).join('');
+function updateInput() {
+  inputElem.textContent = inputStr;
 }
 
-function saveHistory() {
-  localStorage.setItem('calcHistory', JSON.stringify(history));
-  renderHistory();
+function updateOutput(value) {
+  outputElem.textContent = value;
 }
 
-clearHistoryBtn.addEventListener('click', () => {
-  history = [];
-  saveHistory();
-});
+function updateHistory() {
+  historyElem.innerHTML = '';
+  calcHistory.forEach(entry => {
+    const div = document.createElement('div');
+    div.textContent = entry;
+    historyElem.appendChild(div);
+  });
+  localStorage.setItem('calcHist', JSON.stringify(calcHistory));
+}
 
-function appendToInput(value) {
-  if (currentInput === '0' && value !== '.') {
-    currentInput = value;
+function resetAll() {
+  inputStr = '0';
+  updateInput();
+  updateOutput('0');
+}
+
+function backspace() {
+  if (inputStr.length > 1) {
+    inputStr = inputStr.slice(0, -1);
   } else {
-    currentInput += value;
+    inputStr = '0';
   }
-  inputDisplay.textContent = currentInput;
+  updateInput();
 }
 
-function clearLast() {
-  currentInput = currentInput.slice(0, -1);
-  if (currentInput === '') currentInput = '0';
-  inputDisplay.textContent = currentInput;
+function addToInput(ch) {
+  if (inputStr === '0' && ch !== '.') {
+    inputStr = ch;
+  } else {
+    inputStr += ch;
+  }
+  updateInput();
 }
 
-function clearAll() {
-  currentInput = '0';
-  inputDisplay.textContent = currentInput;
-  outputDisplay.textContent = '0';
+function sanitizeExpression(expr) {
+  let result = '';
+  for (let i = 0; i < expr.length; i++) {
+    if (expr[i] === '^') {
+      result += '**';
+    } else {
+      result += expr[i];
+    }
+  }
+  return result;
 }
 
-function prepareExpression(expr) {
-  return expr.replace(/\^/g, '**');
-}
-
-function calculate() {
+function computeExpression() {
+  if (!inputStr.trim()) return;
   try {
-    if (currentInput.trim() === '') return;
-    const expr = prepareExpression(currentInput);
-    let result = Function('"use strict";return (' + expr + ')')();
-    if (typeof result === 'number' && !isNaN(result)) {
-      outputDisplay.textContent = result;
-      lastResult = result;
-      history.push(`${currentInput} = ${result}`);
-      saveHistory();
-      currentInput = '0';
-      inputDisplay.textContent = currentInput;
+    let sanitized = sanitizeExpression(inputStr);
+    let val = eval(sanitized);
+
+    if (typeof val === 'number' && isFinite(val)) {
+      val = Math.round(val * 1e10) / 1e10;
+      updateOutput(val);
+      lastAnswer = val;
+      calcHistory.push(`${inputStr} = ${val}`);
+      updateHistory();
+      inputStr = '0';
+      updateInput();
     } else {
-      outputDisplay.textContent = 'Error';
+      updateOutput('Error');
     }
-  } catch (e) {
-    outputDisplay.textContent = 'Error';
+  } catch {
+    updateOutput('Error');
   }
 }
 
-buttons.forEach(button => {
-  button.addEventListener('click', () => {
-    // Use value if available; else, check IDs for C/CE buttons
-    let val = button.value;
+btns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    let val = btn.value ?? null;
+
     if (!val) {
-      if (button.id === 'clear-btn') val = 'C';
-      else if (button.id === 'clear-all-btn') val = 'CE';
+      if (btn.id === 'clear-btn') val = 'BACK';
+      else if (btn.id === 'clear-all-btn') val = 'RESET';
     }
 
-    if (val === 'C') {
-      clearLast();
-    } else if (val === 'CE') {
-      clearAll();
-    } else if (val === '=') {
-      calculate();
-    } else if (['+', '-', '*', '/', '^'].includes(val)) {
-      if ((currentInput === '0' || currentInput === '') && lastResult !== null) {
-        currentInput = lastResult.toString();
-      }
-      appendToInput(val);
-    } else if (val === '(' || val === ')') {
-      appendToInput(val);
-    } else {
-      appendToInput(val);
+    switch(val) {
+      case 'BACK':
+        backspace();
+        break;
+      case 'RESET':
+        resetAll();
+        break;
+      case '=':
+        computeExpression();
+        break;
+      case '+':
+      case '-':
+      case '*':
+      case '/':
+      case '^':
+      case '(':
+      case ')':
+        if ((inputStr === '0' || inputStr === '') && lastAnswer !== null) {
+          inputStr = String(lastAnswer);
+        }
+        addToInput(val);
+        break;
+      default:
+        if (/^[0-9.]$/.test(val)) {
+          addToInput(val);
+        }
+        break;
     }
   });
 });
 
-document.addEventListener('keydown', e => {
-  const allowedKeys = '0123456789+-*/^().';
-  if (allowedKeys.includes(e.key)) {
-    if ((currentInput === '0' || currentInput === '') && ['+', '-', '*', '/', '^'].includes(e.key) && lastResult !== null) {
-      currentInput = lastResult.toString();
+window.addEventListener('keydown', e => {
+  const keys = '0123456789+-*/^().';
+  if (keys.includes(e.key)) {
+    if ((inputStr === '0' || inputStr === '') && ['+', '-', '*', '/', '^'].includes(e.key) && lastAnswer !== null) {
+      inputStr = String(lastAnswer);
     }
-    appendToInput(e.key);
+    addToInput(e.key);
   } else if (e.key === 'Enter') {
     e.preventDefault();
-    calculate();
+    computeExpression();
   } else if (e.key === 'Backspace') {
-    clearLast();
+    backspace();
   } else if (e.key === 'Delete') {
-    clearAll();
+    resetAll();
   }
 });
 
-renderHistory();
+updateHistory();
+updateInput();
+updateOutput('0');
