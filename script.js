@@ -42,8 +42,16 @@ function backspace() {
 }
 
 function addToInput(ch) {
-  if (inputStr === '0' && ch !== '.') {
-    inputStr = ch;
+  if (inputStr === '0') {
+    if (ch === '.') {
+      inputStr += ch;
+    } 
+    else if (ch >= '1' && ch <= '9') {
+      inputStr = ch;
+    } 
+    else if (ch === '0') {
+      inputStr += ch;
+    }
   } else {
     inputStr += ch;
   }
