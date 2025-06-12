@@ -28,8 +28,12 @@ function updateHistory() {
 
 function resetAll() {
   inputStr = '0';
+  lastAnswer = null;          
+  calcHistory = [];            
+  localStorage.removeItem('calcHist');
   updateInput();
   updateOutput('0');
+  updateHistory();
 }
 
 function backspace() {
@@ -130,6 +134,16 @@ btns.forEach(btn => {
         break;
     }
   });
+});
+
+clearHistoryBtn.addEventListener('click', () => {
+  calcHistory = [];
+  lastAnswer = null;
+  localStorage.removeItem('calcHist');
+  updateHistory();
+  updateOutput('0');
+  inputStr = '0';
+  updateInput();
 });
 
 window.addEventListener('keydown', e => {
